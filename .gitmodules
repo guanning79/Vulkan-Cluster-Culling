@@ -1,3 +1,6 @@
 [submodule "3rdParty/tinyobjloader"]
 	path = 3rdParty/tinyobjloader
 	url = git@github.com:tinyobjloader/tinyobjloader.git
+[submodule "3rdParty/stb"]
+	path = 3rdParty/stb
+	url = git@github.com:nothings/stb.git
