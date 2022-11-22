@@ -35,6 +35,18 @@
     <CopyFileToFolders Include="..\..\..\..\..\images\texture.jpg">
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\..\..\..\resources\new_building_01.obj">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\..\..\..\resources\BS_CC_building_01_D.tga">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\..\..\..\resources\BS_CC_building_01_N.tga">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\..\..\..\..\resources\new_building_01.mtl">
+      <Filter>Resource Files</Filter>
+    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\..\..\26_shader_depth.frag">
