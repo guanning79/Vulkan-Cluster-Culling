@@ -737,7 +737,10 @@ private:
         VkPipelineKey pipelineKeySolid, pipelineKeyWireframe;
         graphicsPipelines[TDT_SOLID] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeySolid);
 
+        pipelineStat.vsName = "shaders/wireframe_vert.spv";
+        pipelineStat.fsName = "shaders/wireframe_frag.spv";
         pipelineStat.polygonMode = VK_POLYGON_MODE_LINE;
+        pipelineStat.wireframeLineWidth = 3.0f;
         graphicsPipelines[TDT_WIREFRAME] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeyWireframe);
     }
 

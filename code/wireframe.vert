@@ -14,10 +14,10 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 fragTexCoord;
 
 const mat4 ScaleMat = {
-    {1.1f, 0.0f, 0.0f, 0.0f}, 
-    {0.0f, 1.1f, 0.0f, 0.0f}, 
-    {0.0f, 0.0f, 1.1f, 0.0f}, 
-    {0.0f, 0.0f, 0.0f, 0.0f}, 
+    {1.001f, 0.0f, 0.0f, 0.0f}, 
+    {0.0f, 1.001f, 0.0f, 0.0f}, 
+    {0.0f, 0.0f, 1.001f, 0.0f}, 
+    {0.0f, 0.0f, 0.0f, 1.0f}, 
 };
 void main() {
     gl_Position = ubo.proj * ubo.view * ubo.model * ScaleMat * vec4(inPosition, 1.0);
