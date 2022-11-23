@@ -42,6 +42,18 @@ const std::string TEXTURE_PATH = "textures/BS_CC_building_01_D.tga";
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
+enum TDrawcallType {
+    TDT_SOLID,
+    TDT_WIREFRAME,
+    TDT_SOLD_WIREFRAME,
+    TDT_MAX
+};
+const char* DrawcallTypeName[] = {
+    "solid",
+    "wireframe",
+    "solid_wireframe"
+};
+
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
@@ -163,8 +175,8 @@ public:
         case GLFW_KEY_F:
             if (action == GLFW_RELEASE)
             {
-                //sAppInstance->graphicsPipelineType = (TDerivativePipline)(((int)sAppInstance->graphicsPipelineType + 1) % (int)TDP_MAX);
-                //printf("[TestLog]: Switch graphics pipeline mode to %s \n", (sAppInstance->graphicsPipelineType == TDP_NORMAL) ? "normal" : "wireframe");
+                sAppInstance->drawType = (TDrawcallType)(((int)sAppInstance->drawType + 1) % (int)TDT_MAX);
+                printf("[TestLog]: Switch graphics pipeline mode to %s \n", DrawcallTypeName[(int)sAppInstance->drawType]);
             }
             break;
         default:
@@ -177,11 +189,6 @@ public:
     GLFWkeyfun              keyEventFunc = nullptr;
 
     static HelloTriangleApplication* sAppInstance;
-    enum TDrawcallType {
-        TDT_NORMAL, 
-        TDT_WIREFRAME, 
-        TDT_MAX
-    };
 
 private:
     GLFWwindow* window;
@@ -207,8 +214,9 @@ private:
     VkRenderPass            renderPass;
     VkDescriptorSetLayout   descriptorSetLayout;
     VkPipelineLayout        pipelineLayout;
-    VkPipeline              graphicsPipeline;
+    VkPipeline              graphicsPipelines[TDT_MAX];
     TPipelineCreateHelper   pipelineCreateHelper;
+    TDrawcallType           drawType = TDT_SOLID;
 
     VkCommandPool commandPool;
 
@@ -326,7 +334,11 @@ private:
 
         vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
-        vkDestroyPipeline(device, graphicsPipeline, nullptr);
+        for (int i=0; i<TDT_MAX; i++)
+        {
+            vkDestroyPipeline(device, graphicsPipelines[i], nullptr);
+        }
+        
         vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
         vkDestroyRenderPass(device, renderPass, nullptr);
 
@@ -705,8 +717,7 @@ private:
 
     void createGraphicsPipelineFamily() {
 
-        VkPipelineLayout layout;
-        VkPipelineKey pipelineLayoutKey = pipelineCreateHelper.GetVkPipelineLayout(device, descriptorSetLayout, layout);
+        VkPipelineKey pipelineLayoutKey = pipelineCreateHelper.GetVkPipelineLayout(device, descriptorSetLayout, pipelineLayout);
 
         TPipelineCreateHelper::PipelineStats pipelineStat = {};
         pipelineStat.vsName = "shaders/vert.spv";
@@ -723,106 +734,11 @@ private:
         pipelineStat.wireframeLineWidth = 2.0f;
         pipelineStat.vpx = pipelineStat.vpy = 0.0f;
 
-        VkPipelineKey pipelineKey;
-        graphicsPipeline = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKey);
-        pipelineLayout = layout;
-        /*
-        pipelineCreateHelper.SwapChainExtentRef = swapChainExtent;
+        VkPipelineKey pipelineKeySolid, pipelineKeyWireframe;
+        graphicsPipelines[TDT_SOLID] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeySolid);
 
-        TShaderModuleCreateHelper vert(device, "shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT, "main");
-        TShaderModuleCreateHelper frag(device, "shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT, "main");
-
-        VkPipelineShaderStageCreateInfo shaderStages[] = { vert.GetShaderStageInfo(), frag.GetShaderStageInfo()};
-
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-        auto bindingDescription = Vertex::getBindingDescription();
-        auto attributeDescriptions = Vertex::getAttributeDescriptions();
-
-        vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-
-        VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-        inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-        VkPipelineViewportStateCreateInfo viewportState = pipelineCreateHelper.GetViewportStateCreateInfo(0.0f, 0.0f);
-
-        VkPipelineRasterizationStateCreateInfo rasterizer = pipelineCreateHelper.GetRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, 1.0f);
-        VkPipelineRasterizationStateCreateInfo rasterizerWireframe = pipelineCreateHelper.GetRasterizationStateCreateInfo(VK_POLYGON_MODE_LINE, 2.0f);
-
-        VkPipelineMultisampleStateCreateInfo multisampling = pipelineCreateHelper.GetMultisampleStateCreateInfo(msaaSamples);
-
-        VkPipelineDepthStencilStateCreateInfo depthStencil= pipelineCreateHelper.GetDepthStencilStateCreateInfo();
-
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = VK_FALSE;
-
-        VkPipelineColorBlendStateCreateInfo colorBlending{};
-        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlending.logicOpEnable = VK_FALSE;
-        colorBlending.logicOp = VK_LOGIC_OP_COPY;
-        colorBlending.attachmentCount = 1;
-        colorBlending.pAttachments = &colorBlendAttachment;
-        colorBlending.blendConstants[0] = 0.0f;
-        colorBlending.blendConstants[1] = 0.0f;
-        colorBlending.blendConstants[2] = 0.0f;
-        colorBlending.blendConstants[3] = 0.0f;
-
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 1;
-        pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-
-        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create pipeline layout!");
-        }
-
-        VkGraphicsPipelineCreateInfo pipelineInfos[TDP_MAX] = {};
-
-        pipelineInfos[(int32_t)TDP_NORMAL].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfos[(int32_t)TDP_NORMAL].flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
-        pipelineInfos[(int32_t)TDP_NORMAL].stageCount = 2;
-        pipelineInfos[(int32_t)TDP_NORMAL].pStages = shaderStages;
-        pipelineInfos[(int32_t)TDP_NORMAL].pVertexInputState = &vertexInputInfo;
-        pipelineInfos[(int32_t)TDP_NORMAL].pInputAssemblyState = &inputAssembly;
-        pipelineInfos[(int32_t)TDP_NORMAL].pViewportState = &viewportState;
-        pipelineInfos[(int32_t)TDP_NORMAL].pRasterizationState = &rasterizer;
-        pipelineInfos[(int32_t)TDP_NORMAL].pMultisampleState = &multisampling;
-        pipelineInfos[(int32_t)TDP_NORMAL].pDepthStencilState = &depthStencil;
-        pipelineInfos[(int32_t)TDP_NORMAL].pColorBlendState = &colorBlending;
-        pipelineInfos[(int32_t)TDP_NORMAL].layout = pipelineLayout;
-        pipelineInfos[(int32_t)TDP_NORMAL].renderPass = renderPass;
-        pipelineInfos[(int32_t)TDP_NORMAL].subpass = 0;
-        pipelineInfos[(int32_t)TDP_NORMAL].basePipelineHandle = VK_NULL_HANDLE;
-                      
-        pipelineInfos[(int32_t)TDP_WIREFRAME].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].stageCount = 2;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].pStages = shaderStages;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].pVertexInputState = &vertexInputInfo;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].pInputAssemblyState = &inputAssembly;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].pViewportState = &viewportState;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].pRasterizationState = &rasterizerWireframe;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].pMultisampleState = &multisampling;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].pDepthStencilState = &depthStencil;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].pColorBlendState = &colorBlending;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].layout = pipelineLayout;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].renderPass = renderPass;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].subpass = 0;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].basePipelineHandle = VK_NULL_HANDLE;
-        pipelineInfos[(int32_t)TDP_WIREFRAME].basePipelineIndex = (int32_t)TDP_NORMAL;
-
-        VkResult res = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 2, &pipelineInfos[0], nullptr, &graphicsPipelines[0]);
-        if (res != VK_SUCCESS) {
-            throw std::runtime_error("failed to create graphics pipeline!");
-        }
-        */
+        pipelineStat.polygonMode = VK_POLYGON_MODE_LINE;
+        graphicsPipelines[TDT_WIREFRAME] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeyWireframe);
     }
 
     void createFramebuffers() {
@@ -1471,17 +1387,32 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
 
         vkCmdBeginRenderPass(commandBuffers[commandBufferIdx], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
         VkBuffer vertexBuffers[] = { vertexBuffer };
         VkDeviceSize offsets[] = { 0 };
+
+        if (drawType < TDT_SOLD_WIREFRAME)
+        {
+            vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[drawType]);
+        }
+        else if(drawType == TDT_SOLD_WIREFRAME)
+        {
+            vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[TDT_SOLID]);
+        }
+
+        
         vkCmdBindVertexBuffers(commandBuffers[commandBufferIdx], 0, 1, vertexBuffers, offsets);
-
         vkCmdBindIndexBuffer(commandBuffers[commandBufferIdx], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
         vkCmdBindDescriptorSets(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[_imageIdx], 0, nullptr);
-
         vkCmdDrawIndexed(commandBuffers[commandBufferIdx], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+        if (drawType == TDT_SOLD_WIREFRAME)
+        {
+            vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[TDT_WIREFRAME]);
+            vkCmdBindVertexBuffers(commandBuffers[commandBufferIdx], 0, 1, vertexBuffers, offsets);
+            vkCmdBindIndexBuffer(commandBuffers[commandBufferIdx], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[_imageIdx], 0, nullptr);
+            vkCmdDrawIndexed(commandBuffers[commandBufferIdx], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        }
 
         vkCmdEndRenderPass(commandBuffers[commandBufferIdx]);
 

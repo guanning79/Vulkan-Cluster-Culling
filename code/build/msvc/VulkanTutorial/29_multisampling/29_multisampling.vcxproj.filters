@@ -55,6 +55,12 @@
     <CustomBuild Include="..\..\..\..\26_shader_depth.vert">
       <Filter>Source Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\..\..\wireframe.vert">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\..\..\wireframe.frag">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\TShaderModuleCreateHelper.h">
