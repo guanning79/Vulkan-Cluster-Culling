@@ -66,7 +66,6 @@ private:
 
     void    _cleanUp();
     void    _exportPipelineCache();
-    int     _loadPipelineCache(size_t& _size, void*& _data);
 
     std::map<VkPipelineKey, VkPipeline>         pipelineMap;
     std::map<VkPipelineKey, VkPipelineLayout>   pipelineLayoutMap;

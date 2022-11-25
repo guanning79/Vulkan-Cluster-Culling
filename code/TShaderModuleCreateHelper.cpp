@@ -15,6 +15,8 @@
 
 #pragma warning(disable: 26812)
 
+const std::string SHADER_CACHE_PATH = "shaders/gpipeline_cache.bin";
+
 TShaderModuleCreateHelper::TShaderModuleCreateHelper(VkDevice _device, const char* _path, const VkShaderStageFlagBits& _shaderStage, const char* _entry): device(_device), shaderModule(VK_NULL_HANDLE)
 {
     auto shaderCode = TUtilities::readFile(_path);
@@ -135,6 +137,17 @@ void TPipelineCreateHelper::Dispose(VkDevice _device)
 {
     if (pipelineCache != VK_NULL_HANDLE)
     {
+        size_t cacheSize = 0;
+        VkResult res = vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, nullptr);
+        if (res == VK_SUCCESS && cacheSize !=0)
+        {
+            std::vector<unsigned char> buffer(cacheSize);
+            res = vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, (void*)buffer.data());
+            if (res == VK_SUCCESS)
+            {
+                TUtilities::writeFile(SHADER_CACHE_PATH, buffer.data(), cacheSize);
+            }
+        }
         vkDestroyPipelineCache(_device, pipelineCache, nullptr);
     }
 }
@@ -260,13 +273,12 @@ VkPipelineKey TPipelineCreateHelper::GetVkPipelineLayout(VkDevice _device, VkDes
 
 void TPipelineCreateHelper::Init(VkDevice _device)
 {
-    size_t cacheFileSize;
-    void* data = nullptr;
-    int res = _loadPipelineCache(cacheFileSize, data);
+    std::vector<unsigned char> cacheBuffer;
+    size_t cacheFileSize = TUtilities::readFile(SHADER_CACHE_PATH, cacheBuffer);
 
     VkPipelineCacheCreateInfo pipelineCacheInfo = {};
     pipelineCacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-    if (res = -1)
+    if (cacheFileSize == 0)
     {
         //load pipeline file failed
         pipelineCacheInfo.initialDataSize = 0;
@@ -275,7 +287,7 @@ void TPipelineCreateHelper::Init(VkDevice _device)
     else
     {
         pipelineCacheInfo.initialDataSize = cacheFileSize;
-        pipelineCacheInfo.pInitialData = data;
+        pipelineCacheInfo.pInitialData = (void*)cacheBuffer.data();
     }
     vkCreatePipelineCache(_device, &pipelineCacheInfo, nullptr, &pipelineCache);
 }
@@ -291,7 +303,3 @@ void TPipelineCreateHelper::_exportPipelineCache()
 
 }
 
-int TPipelineCreateHelper::_loadPipelineCache(size_t& _size, void*& _data)
-{
-    return 0;
-}

@@ -358,6 +358,7 @@ private:
 
     void cleanup() {
         cleanupSwapChain();
+        pipelineCreateHelper.Dispose(device);
 
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);
@@ -717,6 +718,7 @@ private:
 
     void createGraphicsPipelineFamily() {
 
+        pipelineCreateHelper.Init(device);
         VkPipelineKey pipelineLayoutKey = pipelineCreateHelper.GetVkPipelineLayout(device, descriptorSetLayout, pipelineLayout);
 
         TPipelineCreateHelper::PipelineStats pipelineStat = {};
