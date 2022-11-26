@@ -12,6 +12,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\29_multisampling.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\allocator.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\clusterizer.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\indexcodec.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\indexgenerator.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\overdrawanalyzer.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\overdrawoptimizer.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\simplifier.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\spatialorder.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\stripifier.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\vcacheanalyzer.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\vcacheoptimizer.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\vertexcodec.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\vertexfilter.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\vfetchanalyzer.cpp" />
+    <ClCompile Include="..\..\..\..\mesh_optimizer\vfetchoptimizer.cpp" />
     <ClCompile Include="..\..\..\..\TShaderModuleCreateHelper.cpp" />
     <ClCompile Include="..\..\..\..\TUtilities.cpp" />
   </ItemGroup>
@@ -71,6 +86,7 @@ $(VULKAN_SDK)\Bin\glslc.exe %(Identity) -o $(OutDir)shaders\vert.spv</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\mesh_optimizer\meshoptimizer.h" />
     <ClInclude Include="..\..\..\..\TShaderModuleCreateHelper.h" />
     <ClInclude Include="..\..\..\..\TUtilities.h" />
   </ItemGroup>

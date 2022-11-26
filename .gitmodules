@@ -4,3 +4,6 @@
 [submodule "3rdParty/stb"]
 	path = 3rdParty/stb
 	url = git@github.com:nothings/stb.git
+[submodule "3rdParty/meshoptimizer"]
+	path = 3rdParty/meshoptimizer
+	url = git@github.com:zeux/meshoptimizer.git

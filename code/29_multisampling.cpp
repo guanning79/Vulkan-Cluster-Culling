@@ -28,6 +28,8 @@
 #include <set>
 #include <unordered_map>
 
+#include "mesh_optimizer/meshoptimizer.h"
+
 #include "TShaderModuleCreateHelper.h"
 
 #pragma warning(disable:26812)
@@ -1153,6 +1155,19 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
+
+        ////convert to meshlet data
+        //const size_t max_vertices = 64;
+        //const size_t max_triangles = 124;
+        //const float cone_weight = 0.0f;
+
+        //size_t max_meshlets = meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles);
+        //std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+        //std::vector<unsigned int> meshlet_vertices(max_meshlets * max_vertices);
+        //std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
+
+        //size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(),
+        //    indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
     }
 
     void createVertexBuffer() {
