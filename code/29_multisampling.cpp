@@ -48,12 +48,14 @@ enum TDrawcallType {
     TDT_SOLID,
     TDT_WIREFRAME,
     TDT_SOLD_WIREFRAME,
+    TDT_CLUSTER_SHADE, 
     TDT_MAX
 };
 const char* DrawcallTypeName[] = {
     "solid",
     "wireframe",
     "solid_wireframe"
+    "cluster_shade"
 };
 
 const std::vector<const char*> validationLayers = {
@@ -735,10 +737,10 @@ private:
         pipelineStat.isDerivatePipeline = false;
         pipelineStat.basePipeline = VK_NULL_HANDLE;
         pipelineStat.polygonMode = VK_POLYGON_MODE_FILL;
-        pipelineStat.wireframeLineWidth = 2.0f;
+        pipelineStat.wireframeLineWidth = 1.0f;
         pipelineStat.vpx = pipelineStat.vpy = 0.0f;
 
-        VkPipelineKey pipelineKeySolid, pipelineKeyWireframe;
+        VkPipelineKey pipelineKeySolid, pipelineKeyWireframe, pipelineKeyClusterShade;
         graphicsPipelines[TDT_SOLID] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeySolid);
 
         pipelineStat.vsName = "shaders/wireframe_vert.spv";
@@ -746,6 +748,12 @@ private:
         pipelineStat.polygonMode = VK_POLYGON_MODE_LINE;
         pipelineStat.wireframeLineWidth = 3.0f;
         graphicsPipelines[TDT_WIREFRAME] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeyWireframe);
+
+        pipelineStat.vsName = "shaders/cluster_shade_vert.spv";
+        pipelineStat.fsName = "shaders/cluster_shade_frag.spv";
+        pipelineStat.polygonMode = VK_POLYGON_MODE_FILL;
+        pipelineStat.wireframeLineWidth = 1.0f;
+        graphicsPipelines[TDT_CLUSTER_SHADE] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeyClusterShade);
     }
 
     void createFramebuffers() {
@@ -1410,11 +1418,11 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
         VkBuffer vertexBuffers[] = { vertexBuffer };
         VkDeviceSize offsets[] = { 0 };
 
-        if (drawType < TDT_SOLD_WIREFRAME)
+        if (drawType != TDT_SOLD_WIREFRAME)
         {
             vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[drawType]);
         }
-        else if(drawType == TDT_SOLD_WIREFRAME)
+        else
         {
             vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[TDT_SOLID]);
         }

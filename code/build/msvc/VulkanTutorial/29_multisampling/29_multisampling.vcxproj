@@ -146,6 +146,30 @@ $(VULKAN_SDK)\Bin\glslc.exe %(Identity) -o $(OutDir)shaders\%(Filename)_vert.spv
 $(VULKAN_SDK)\Bin\glslc.exe %(Identity) -o $(OutDir)shaders\%(Filename)_vert.spv</Command>
     </CustomBuild>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\..\cluster_shade.frag">
+      <FileType>Document</FileType>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)shaders\%(Filename)_frag.spv</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)shaders\%(Filename)_frag.spv</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Fragment Shader Compiler</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Fragment Shader Compiler</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">IF NOT EXIST $(OutDir)shaders mkdir $(OutDir)shaders
+$(VULKAN_SDK)\Bin\glslc.exe %(Identity) -o $(OutDir)shaders\%(Filename)_frag.spv</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">IF NOT EXIST $(OutDir)shaders mkdir $(OutDir)shaders
+$(VULKAN_SDK)\Bin\glslc.exe %(Identity) -o $(OutDir)shaders\%(Filename)_frag.spv</Command>
+    </CustomBuild>
+    <CustomBuild Include="..\..\..\..\cluster_shade.vert">
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex Shader Compiler</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex Shader Compiler</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)shaders\%(Filename)_vert.spv</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)shaders\%(Filename)_vert.spv</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">IF NOT EXIST $(OutDir)shaders mkdir $(OutDir)shaders
+$(VULKAN_SDK)\Bin\glslc.exe %(Identity) -o $(OutDir)shaders\%(Filename)_vert.spv</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">IF NOT EXIST $(OutDir)shaders mkdir $(OutDir)shaders
+$(VULKAN_SDK)\Bin\glslc.exe %(Identity) -o $(OutDir)shaders\%(Filename)_vert.spv</Command>
+    </CustomBuild>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
