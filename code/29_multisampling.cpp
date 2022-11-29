@@ -43,12 +43,14 @@ const std::string MODEL_PATH = "models/new_building_01.obj";
 const std::string TEXTURE_PATH = "textures/BS_CC_building_01_D.tga";
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
+static float lastTime = 0.0f;
 
 enum TDrawcallType {
     TDT_SOLID,
     TDT_WIREFRAME,
     TDT_SOLD_WIREFRAME,
     TDT_CLUSTER_SHADE, 
+    TDT_CLUSTER_SHADE_WIREFRAME, 
     TDT_MAX
 };
 const char* DrawcallTypeName[] = {
@@ -183,6 +185,10 @@ public:
                 printf("[TestLog]: Switch graphics pipeline mode to %s \n", DrawcallTypeName[(int)sAppInstance->drawType]);
             }
             break;
+        case GLFW_KEY_P:
+            if (action == GLFW_RELEASE)
+                sAppInstance->pauseModel = !sAppInstance->pauseModel;
+            break;
         default:
             break;
         }
@@ -221,6 +227,7 @@ private:
     VkPipeline              graphicsPipelines[TDT_MAX];
     TPipelineCreateHelper   pipelineCreateHelper;
     TDrawcallType           drawType = TDT_SOLID;
+    bool                    pauseModel = false;
 
     VkCommandPool commandPool;
 
@@ -741,7 +748,7 @@ private:
         pipelineStat.vpx = pipelineStat.vpy = 0.0f;
 
         VkPipelineKey pipelineKeySolid, pipelineKeyWireframe, pipelineKeyClusterShade;
-        graphicsPipelines[TDT_SOLID] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeySolid);
+        graphicsPipelines[TDT_SOLID] = graphicsPipelines[TDT_SOLD_WIREFRAME] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeySolid);
 
         pipelineStat.vsName = "shaders/wireframe_vert.spv";
         pipelineStat.fsName = "shaders/wireframe_frag.spv";
@@ -753,7 +760,7 @@ private:
         pipelineStat.fsName = "shaders/cluster_shade_frag.spv";
         pipelineStat.polygonMode = VK_POLYGON_MODE_FILL;
         pipelineStat.wireframeLineWidth = 1.0f;
-        graphicsPipelines[TDT_CLUSTER_SHADE] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeyClusterShade);
+        graphicsPipelines[TDT_CLUSTER_SHADE] = graphicsPipelines[TDT_CLUSTER_SHADE_WIREFRAME] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeyClusterShade);
     }
 
     void createFramebuffers() {
@@ -1164,18 +1171,34 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
             }
         }
 
-        ////convert to meshlet data
-        //const size_t max_vertices = 64;
-        //const size_t max_triangles = 124;
-        //const float cone_weight = 0.0f;
+        //convert to meshlet data
+        const size_t max_vertices = 64;
+        const size_t max_triangles = 124;
+        const float cone_weight = 0.0f;
 
-        //size_t max_meshlets = meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles);
-        //std::vector<meshopt_Meshlet> meshlets(max_meshlets);
-        //std::vector<unsigned int> meshlet_vertices(max_meshlets * max_vertices);
-        //std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
+        size_t max_meshlets = meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles);
+        std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+        std::vector<unsigned int> meshlet_vertices(max_meshlets * max_vertices);
+        std::vector<unsigned char> meshlet_triangles(max_meshlets * max_triangles * 3);
 
-        //size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(),
-        //    indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
+        size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(),
+            indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
+
+        indices.resize(meshlets.size() * max_triangles * 3);
+        for (size_t m = 0; m < meshlets.size(); m++)
+        {
+            meshopt_Meshlet& ml = meshlets[m];
+            for (size_t t = 0; t < max_triangles; t++)
+            {
+                size_t base_index = m * max_triangles * 3 + t * 3;
+                for (size_t i = 0; i < 3; i++)
+                {
+                    unsigned char vIDInMeshlet = meshlet_triangles[ml.triangle_offset + t * 3 + i];
+                    unsigned int vIDinMesh = meshlet_vertices[(size_t)ml.vertex_offset + vIDInMeshlet];
+                    indices[base_index + i] = (t < ml.triangle_count) ? vIDinMesh : 0;
+                }
+            }
+        }
     }
 
     void createVertexBuffer() {
@@ -1418,22 +1441,14 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
         VkBuffer vertexBuffers[] = { vertexBuffer };
         VkDeviceSize offsets[] = { 0 };
 
-        if (drawType != TDT_SOLD_WIREFRAME)
-        {
-            vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[drawType]);
-        }
-        else
-        {
-            vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[TDT_SOLID]);
-        }
-
-        
+        vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[drawType]);
+     
         vkCmdBindVertexBuffers(commandBuffers[commandBufferIdx], 0, 1, vertexBuffers, offsets);
         vkCmdBindIndexBuffer(commandBuffers[commandBufferIdx], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
         vkCmdBindDescriptorSets(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[_imageIdx], 0, nullptr);
         vkCmdDrawIndexed(commandBuffers[commandBufferIdx], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
-        if (drawType == TDT_SOLD_WIREFRAME)
+        if (drawType == TDT_SOLD_WIREFRAME || drawType == TDT_CLUSTER_SHADE_WIREFRAME)
         {
             vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[TDT_WIREFRAME]);
             vkCmdBindVertexBuffers(commandBuffers[commandBufferIdx], 0, 1, vertexBuffers, offsets);
@@ -1475,7 +1490,8 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
         static auto startTime = std::chrono::high_resolution_clock::now();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
-        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        float time = (!pauseModel)? std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count(): lastTime;
+        lastTime = time;
 
         //update camera position
         {
