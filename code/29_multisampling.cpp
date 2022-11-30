@@ -56,8 +56,9 @@ enum TDrawcallType {
 const char* DrawcallTypeName[] = {
     "solid",
     "wireframe",
-    "solid_wireframe"
-    "cluster_shade"
+    "solid_wireframe", 
+    "cluster_shade", 
+    "cluster_shade_wireframe", 
 };
 
 const std::vector<const char*> validationLayers = {
