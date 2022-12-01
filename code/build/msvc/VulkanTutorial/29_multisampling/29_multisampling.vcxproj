@@ -27,6 +27,7 @@
     <ClCompile Include="..\..\..\..\mesh_optimizer\vertexfilter.cpp" />
     <ClCompile Include="..\..\..\..\mesh_optimizer\vfetchanalyzer.cpp" />
     <ClCompile Include="..\..\..\..\mesh_optimizer\vfetchoptimizer.cpp" />
+    <ClCompile Include="..\..\..\..\TComputePass.cpp" />
     <ClCompile Include="..\..\..\..\TShaderModuleCreateHelper.cpp" />
     <ClCompile Include="..\..\..\..\TUtilities.cpp" />
   </ItemGroup>
@@ -87,6 +88,7 @@ $(VULKAN_SDK)\Bin\glslc.exe %(Identity) -o $(OutDir)shaders\vert.spv</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\mesh_optimizer\meshoptimizer.h" />
+    <ClInclude Include="..\..\..\..\TComputePass.h" />
     <ClInclude Include="..\..\..\..\TShaderModuleCreateHelper.h" />
     <ClInclude Include="..\..\..\..\TUtilities.h" />
   </ItemGroup>

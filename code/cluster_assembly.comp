@@ -8,11 +8,19 @@ struct ClusterData {
     int vertex_count;
     int triangle_count;
 };
-layout(std430, set = 0, binding = 0) buffer  InputBuffer{
+layout(std430, set = 0, binding = 0) buffer  Clusters{
     ClusterData data[];
-} clusterData;
+} clusters;
 
-layout(std430, set = 0, binding = 1) buffer  OutputBuffer{
+layout(std430, set = 0, binding = 1) buffer  ClusterVertices{
+    int data[];
+} vertices;
+
+layout(std430, set = 0, binding = 2) buffer  ClusterTriangles{
+    int data[];
+} triangles;
+
+layout(std430, set = 0, binding = 3) buffer  OutputBuffer{
     int test[];
 } outputData;
 
@@ -22,10 +30,10 @@ void main()
     //grab global ID
 	uint gID = gl_GlobalInvocationID.x;
     //make sure we don't access past the buffer size
-    if(gID < clusterData.data.length())
+    if(gID < clusters.data.length())
     {
         // do math
-        outputData.test[gID] = clusterData.data[gID].vertex_offset;
+        outputData.test[gID] = clusters.data[gID].vertex_offset;
     }
 }
 

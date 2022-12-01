@@ -78,6 +78,9 @@
     <ClCompile Include="..\..\..\..\mesh_optimizer\vfetchoptimizer.cpp">
       <Filter>Source Files\mesh_optimizer</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\TComputePass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\..\..\..\..\resources\viking_room.obj">
@@ -134,6 +137,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\..\mesh_optimizer\meshoptimizer.h">
       <Filter>Header Files\mesh_optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\TComputePass.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
