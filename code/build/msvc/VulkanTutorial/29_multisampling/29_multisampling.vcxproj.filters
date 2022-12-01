@@ -121,6 +121,9 @@
     <CustomBuild Include="..\..\..\..\cluster_shade.frag">
       <Filter>Source Files\shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\..\..\cluster_assembly.comp">
+      <Filter>Source Files\shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\TShaderModuleCreateHelper.h">

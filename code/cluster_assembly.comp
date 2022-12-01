@@ -1,0 +1,31 @@
+#version 450
+
+layout (local_size_x = 64) in;
+
+struct ClusterData {
+    int vertex_offset;
+    int triangle_offset;
+    int vertex_count;
+    int triangle_count;
+};
+layout(std430, set = 0, binding = 0) buffer  InputBuffer{
+    ClusterData data[];
+} clusterData;
+
+layout(std430, set = 0, binding = 1) buffer  OutputBuffer{
+    int test[];
+} outputData;
+
+
+void main()
+{
+    //grab global ID
+	uint gID = gl_GlobalInvocationID.x;
+    //make sure we don't access past the buffer size
+    if(gID < clusterData.data.length())
+    {
+        // do math
+        outputData.test[gID] = clusterData.data[gID].vertex_offset;
+    }
+}
+
