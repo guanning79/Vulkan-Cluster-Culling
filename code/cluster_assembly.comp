@@ -12,17 +12,21 @@ layout(std430, set = 0, binding = 0) buffer  Clusters{
     ClusterData data[];
 } clusters;
 
-layout(std430, set = 0, binding = 1) buffer  ClusterVertices{
-    int data[];
-} vertices;
+//layout(std430, set = 0, binding = 1) buffer  ClusterVertices{
+//    int data[];
+//} vertices;
+//
+//layout(std430, set = 0, binding = 2) buffer  ClusterTriangles{
+//    int data[];
+//} triangles;
 
-layout(std430, set = 0, binding = 2) buffer  ClusterTriangles{
-    int data[];
-} triangles;
-
-layout(std430, set = 0, binding = 3) buffer  OutputBuffer{
-    int test[];
-} outputData;
+struct OutData {
+    uint vertex_offset;
+    uint vertex_id;
+};
+layout(std430, set = 0, binding = 1) buffer  OutputBuffer{
+    OutData data[];
+} outTest;
 
 
 void main()
@@ -33,7 +37,11 @@ void main()
     if(gID < clusters.data.length())
     {
         // do math
-        outputData.test[gID] = clusters.data[gID].vertex_offset;
+        outTest.data[gID].vertex_offset = clusters.data[gID].vertex_offset;
+    }
+    else
+    {
+        outTest.data[gID].vertex_offset = gl_WorkGroupID.x;
     }
 }
 

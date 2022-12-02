@@ -53,9 +53,16 @@ public:
         VkPipelineKey           getPipelineKey() const;
     };
 
+    struct ComputePipelineStats
+    {
+        std::string             csName, csEntry;
+        VkPipelineKey           pipelineLayoutKey;
+    };
+
     //VkExtent2D SwapChainExtentRef;
 
     VkPipeline          GetVkPipeline(VkDevice _device, const PipelineStats& _pipelineStats, VkPipelineKey& _keyOut);
+    VkPipeline          GetVkComputePipeline(VkDevice _device, const ComputePipelineStats& _pipelineStats, VkPipelineKey& _keyOut);
     VkPipelineLayout    GetVkPipelineLayout(VkPipelineKey _key) { return (pipelineLayoutMap.find(_key) != pipelineLayoutMap.end()) ? pipelineLayoutMap[_key] : VK_NULL_HANDLE; }
     VkPipelineKey       GetVkPipelineLayout(VkDevice _device, VkDescriptorSetLayout _descSetLayout, VkPipelineLayout& _outPipelineLayout);
 
@@ -71,3 +78,5 @@ private:
     std::map<VkPipelineKey, VkPipelineLayout>   pipelineLayoutMap;
     VkPipelineCache                             pipelineCache;
 };
+
+TPipelineCreateHelper& GetPipelineCreateHelper();

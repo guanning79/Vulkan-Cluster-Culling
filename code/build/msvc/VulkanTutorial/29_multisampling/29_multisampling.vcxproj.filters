@@ -81,6 +81,9 @@
     <ClCompile Include="..\..\..\..\TComputePass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\TBufferManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\..\..\..\..\resources\viking_room.obj">
@@ -139,6 +142,9 @@
       <Filter>Header Files\mesh_optimizer</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\TComputePass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\TBufferManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

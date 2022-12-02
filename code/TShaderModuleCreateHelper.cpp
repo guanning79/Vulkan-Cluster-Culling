@@ -133,6 +133,12 @@ struct VertexDefine {
     }
 };
 
+TPipelineCreateHelper SPipelineCreateHelper;
+TPipelineCreateHelper& GetPipelineCreateHelper()
+{
+    return SPipelineCreateHelper;
+}
+
 void TPipelineCreateHelper::Dispose(VkDevice _device)
 {
     if (pipelineCache != VK_NULL_HANDLE)
@@ -150,13 +156,23 @@ void TPipelineCreateHelper::Dispose(VkDevice _device)
         }
         vkDestroyPipelineCache(_device, pipelineCache, nullptr);
     }
+
+    for (auto it = pipelineMap.begin(); it != pipelineMap.end(); it++)
+    {
+        vkDestroyPipeline(_device, it->second, nullptr);
+    }
+
+    for (auto it = pipelineLayoutMap.begin(); it != pipelineLayoutMap.end(); it++)
+    {
+        vkDestroyPipelineLayout(_device, it->second, nullptr);
+    }
 }
 
 VkPipeline TPipelineCreateHelper::GetVkPipeline(VkDevice _device, const PipelineStats& _pipelineStats, VkPipelineKey& _keyOut)
 {
-    _keyOut = _pipelineStats.getPipelineKey();
-    if (pipelineMap.find(_keyOut) != pipelineMap.end())
-        return pipelineMap[_keyOut];
+    //_keyOut = _pipelineStats.getPipelineKey();
+    //if (pipelineMap.find(_keyOut) != pipelineMap.end())
+    //    return pipelineMap[_keyOut];
 
     TShaderModuleCreateHelper vert(_device, _pipelineStats.vsName.c_str(), VK_SHADER_STAGE_VERTEX_BIT, _pipelineStats.vsEntry.c_str());
     TShaderModuleCreateHelper frag(_device, _pipelineStats.fsName.c_str(), VK_SHADER_STAGE_FRAGMENT_BIT, _pipelineStats.fsEntry.c_str());
@@ -248,6 +264,29 @@ VkPipeline TPipelineCreateHelper::GetVkPipeline(VkDevice _device, const Pipeline
     if (res != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
+    _keyOut = pipelineMap.size();
+    pipelineMap[_keyOut] = pipeline;
+    return pipeline;
+}
+
+VkPipeline TPipelineCreateHelper::GetVkComputePipeline(VkDevice _device, const ComputePipelineStats& _pipelineStats, VkPipelineKey& _keyOut)
+{
+    TShaderModuleCreateHelper comp(_device, _pipelineStats.csName.c_str(), VK_SHADER_STAGE_COMPUTE_BIT, _pipelineStats.csEntry.c_str());
+
+    VkPipelineShaderStageCreateInfo shaderStage = comp.GetShaderStageInfo();
+
+    VkComputePipelineCreateInfo computePipelineCreateInfo = {};
+    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.flags = 0;
+    computePipelineCreateInfo.stage = shaderStage;
+    computePipelineCreateInfo.layout = GetVkPipelineLayout(_pipelineStats.pipelineLayoutKey);
+
+    VkPipeline pipeline;
+    VkResult res = vkCreateComputePipelines(_device, pipelineCache, 1, &computePipelineCreateInfo, nullptr, &pipeline);
+    if (res != VK_SUCCESS) {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+    _keyOut = pipelineMap.size();
     pipelineMap[_keyOut] = pipeline;
     return pipeline;
 }

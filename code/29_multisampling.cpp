@@ -29,6 +29,8 @@
 #include <unordered_map>
 
 #include "mesh_optimizer/meshoptimizer.h"
+#include "TComputePass.h"
+#include "TBufferManager.h"
 
 #include "TShaderModuleCreateHelper.h"
 
@@ -226,7 +228,6 @@ private:
     VkDescriptorSetLayout   descriptorSetLayout;
     VkPipelineLayout        pipelineLayout;
     VkPipeline              graphicsPipelines[TDT_MAX];
-    TPipelineCreateHelper   pipelineCreateHelper;
     TDrawcallType           drawType = TDT_SOLID;
     bool                    pauseModel = false;
 
@@ -272,6 +273,9 @@ private:
 
     bool framebufferResized = false;
 
+    //Compute pass
+    TComputePass* computePass = nullptr;
+
     void initApp()
     {
         
@@ -312,6 +316,7 @@ private:
         createTextureImage();
         createTextureImageView();
         createTextureSampler();
+        createComputePass();
         loadModel();
         createVertexBuffer();
         createIndexBuffer();
@@ -346,12 +351,13 @@ private:
 
         vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
+        //graphicsPipelines & pipelineLayout will be destroyed in TPipelineCreateHelper.Dispose()
         for (int i=0; i<TDT_MAX; i++)
         {
-            vkDestroyPipeline(device, graphicsPipelines[i], nullptr);
+            //graphicsPipelines will be destroyed in TPipelineCreateHelper.Dispose()
+            graphicsPipelines[i] = VK_NULL_HANDLE;
         }
         
-        vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
         vkDestroyRenderPass(device, renderPass, nullptr);
 
         for (auto imageView : swapChainImageViews) {
@@ -370,7 +376,7 @@ private:
 
     void cleanup() {
         cleanupSwapChain();
-        pipelineCreateHelper.Dispose(device);
+        GetPipelineCreateHelper().Dispose(device);
 
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);
@@ -385,6 +391,8 @@ private:
 
         vkDestroyBuffer(device, vertexBuffer, nullptr);
         vkFreeMemory(device, vertexBufferMemory, nullptr);
+
+        TComputePass::DestroyComputePassHandles(device);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -431,8 +439,16 @@ private:
         createDescriptorPool();
         createDescriptorSets();
         createCommandBuffers();
+        //createComputePass();
 
         imagesInFlight.resize(swapChainImages.size(), VK_NULL_HANDLE);
+    }
+
+    void createComputePass()
+    {
+        TComputePass::CreateComputeDescriptorPool(device);
+        computePass = TComputePass::CreateComputePass(device);
+        TBufferManager::InitContext(physicalDevice);
     }
 
     void createInstance() {
@@ -543,6 +559,7 @@ private:
         deviceFeatures.samplerAnisotropy = VK_TRUE;
         deviceFeatures.fillModeNonSolid = true;
         deviceFeatures.wideLines = true;
+        deviceFeatures.geometryShader = true;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -730,8 +747,8 @@ private:
 
     void createGraphicsPipelineFamily() {
 
-        pipelineCreateHelper.Init(device);
-        VkPipelineKey pipelineLayoutKey = pipelineCreateHelper.GetVkPipelineLayout(device, descriptorSetLayout, pipelineLayout);
+        GetPipelineCreateHelper().Init(device);
+        VkPipelineKey pipelineLayoutKey = GetPipelineCreateHelper().GetVkPipelineLayout(device, descriptorSetLayout, pipelineLayout);
 
         TPipelineCreateHelper::PipelineStats pipelineStat = {};
         pipelineStat.vsName = "shaders/vert.spv";
@@ -749,19 +766,19 @@ private:
         pipelineStat.vpx = pipelineStat.vpy = 0.0f;
 
         VkPipelineKey pipelineKeySolid, pipelineKeyWireframe, pipelineKeyClusterShade;
-        graphicsPipelines[TDT_SOLID] = graphicsPipelines[TDT_SOLD_WIREFRAME] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeySolid);
+        graphicsPipelines[TDT_SOLID] = graphicsPipelines[TDT_SOLD_WIREFRAME] = GetPipelineCreateHelper().GetVkPipeline(device, pipelineStat, pipelineKeySolid);
 
         pipelineStat.vsName = "shaders/wireframe_vert.spv";
         pipelineStat.fsName = "shaders/wireframe_frag.spv";
         pipelineStat.polygonMode = VK_POLYGON_MODE_LINE;
         pipelineStat.wireframeLineWidth = 3.0f;
-        graphicsPipelines[TDT_WIREFRAME] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeyWireframe);
+        graphicsPipelines[TDT_WIREFRAME] = GetPipelineCreateHelper().GetVkPipeline(device, pipelineStat, pipelineKeyWireframe);
 
         pipelineStat.vsName = "shaders/cluster_shade_vert.spv";
         pipelineStat.fsName = "shaders/cluster_shade_frag.spv";
         pipelineStat.polygonMode = VK_POLYGON_MODE_FILL;
         pipelineStat.wireframeLineWidth = 1.0f;
-        graphicsPipelines[TDT_CLUSTER_SHADE] = graphicsPipelines[TDT_CLUSTER_SHADE_WIREFRAME] = pipelineCreateHelper.GetVkPipeline(device, pipelineStat, pipelineKeyClusterShade);
+        graphicsPipelines[TDT_CLUSTER_SHADE] = graphicsPipelines[TDT_CLUSTER_SHADE_WIREFRAME] = GetPipelineCreateHelper().GetVkPipeline(device, pipelineStat, pipelineKeyClusterShade);
     }
 
     void createFramebuffers() {
@@ -1185,21 +1202,36 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
         size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(),
             indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
 
-        indices.resize(meshlets.size() * max_triangles * 3);
-        for (size_t m = 0; m < meshlets.size(); m++)
+        std::vector<unsigned int> meshlet_triangles_pack;
+        meshlet_triangles_pack.resize(meshlet_triangles.size() / 3);
+        for (size_t i=0; i< meshlet_triangles_pack.size(); i++)
         {
-            meshopt_Meshlet& ml = meshlets[m];
-            for (size_t t = 0; t < max_triangles; t++)
-            {
-                size_t base_index = m * max_triangles * 3 + t * 3;
-                for (size_t i = 0; i < 3; i++)
-                {
-                    unsigned char vIDInMeshlet = meshlet_triangles[ml.triangle_offset + t * 3 + i];
-                    unsigned int vIDinMesh = meshlet_vertices[(size_t)ml.vertex_offset + vIDInMeshlet];
-                    indices[base_index + i] = (t < ml.triangle_count) ? vIDinMesh : 0;
-                }
-            }
+            meshlet_triangles_pack[i] = (meshlet_triangles[i * 3] << 16) + (meshlet_triangles[i * 3 + 1] << 8) + meshlet_triangles[i * 3 + 2];
         }
+        computePass->CreateDescriptorSetLayout(2);
+        computePass->CreateComputePipeline();
+        computePass->SetComputeConfig((uint32_t)meshlets.size() / 64 + 1, 1, 1, 64);
+
+        computePass->AddStorageBuffers(sizeof(meshopt_Meshlet) * meshlets.size(), meshlets.data());
+        //computePass->AddStorageBuffers(sizeof(unsigned int) * meshlet_vertices.size(), meshlet_vertices.data());
+        //computePass->AddStorageBuffers(sizeof(unsigned int) * meshlet_triangles_pack.size(), meshlet_triangles_pack.data());
+        computePass->AddStorageBuffers(sizeof(unsigned int) * 2 * meshlets.size(), nullptr);
+        computePass->CreateDescriptorSet();
+        //indices.resize(meshlets.size() * max_triangles * 3);
+        //for (size_t m = 0; m < meshlets.size(); m++)
+        //{
+        //    meshopt_Meshlet& ml = meshlets[m];
+        //    for (size_t t = 0; t < max_triangles; t++)
+        //    {
+        //        size_t base_index = m * max_triangles * 3 + t * 3;
+        //        for (size_t i = 0; i < 3; i++)
+        //        {
+        //            unsigned char vIDInMeshlet = meshlet_triangles[ml.triangle_offset + t * 3 + i];
+        //            unsigned int vIDinMesh = meshlet_vertices[(size_t)ml.vertex_offset + vIDInMeshlet];
+        //            indices[base_index + i] = (t < ml.triangle_count) ? vIDinMesh : 0;
+        //        }
+        //    }
+        //}
     }
 
     void createVertexBuffer() {
@@ -1375,7 +1407,7 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
 
         vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     }
-
+public:
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1385,7 +1417,7 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
 
         endSingleTimeCommands(commandBuffer);
     }
-
+private:
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -1422,6 +1454,8 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
         if (vkBeginCommandBuffer(commandBuffers[commandBufferIdx], &beginInfo) != VK_SUCCESS) {
             throw std::runtime_error("failed to begin recording command buffer!");
         }
+
+        computePass->Dispatch(commandBuffers[commandBufferIdx]);
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1693,7 +1727,7 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
 
         int i = 0;
         for (const auto& queueFamily : queueFamilies) {
-            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
                 indices.graphicsFamily = i;
             }
 
@@ -1761,6 +1795,10 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
 };
 
 HelloTriangleApplication* HelloTriangleApplication::sAppInstance = nullptr;
+void CopyVkBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+    HelloTriangleApplication::sAppInstance->copyBuffer(srcBuffer, dstBuffer, size);
+}
 
 int main() {
     HelloTriangleApplication app;
