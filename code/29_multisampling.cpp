@@ -1202,36 +1202,23 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
         size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(),
             indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
 
-        std::vector<unsigned int> meshlet_triangles_pack;
-        meshlet_triangles_pack.resize(meshlet_triangles.size() / 3);
-        for (size_t i=0; i< meshlet_triangles_pack.size(); i++)
+        size_t actualMeshletNum = 0;
+        for (; actualMeshletNum <meshlets.size(); actualMeshletNum++)
         {
-            meshlet_triangles_pack[i] = (meshlet_triangles[i * 3] << 16) + (meshlet_triangles[i * 3 + 1] << 8) + meshlet_triangles[i * 3 + 2];
+            if(meshlets[actualMeshletNum].triangle_count == 0)
+                break;
         }
-        computePass->CreateDescriptorSetLayout(2);
-        computePass->CreateComputePipeline();
-        computePass->SetComputeConfig((uint32_t)meshlets.size() / 64 + 1, 1, 1, 64);
 
-        computePass->AddStorageBuffers(sizeof(meshopt_Meshlet) * meshlets.size(), meshlets.data());
-        //computePass->AddStorageBuffers(sizeof(unsigned int) * meshlet_vertices.size(), meshlet_vertices.data());
-        //computePass->AddStorageBuffers(sizeof(unsigned int) * meshlet_triangles_pack.size(), meshlet_triangles_pack.data());
-        computePass->AddStorageBuffers(sizeof(unsigned int) * 2 * meshlets.size(), nullptr);
+        computePass->CreateDescriptorSetLayout(5);
+        computePass->CreateComputePipeline();
+        computePass->SetComputeConfig((uint32_t)actualMeshletNum / 64 + 1, 1, 1, 64);
+
+        computePass->AddStorageBuffers(sizeof(meshopt_Meshlet) * actualMeshletNum, meshlets.data());
+        computePass->AddStorageBuffers(sizeof(unsigned int) * actualMeshletNum * max_vertices, meshlet_vertices.data());
+        computePass->AddStorageBuffers(sizeof(unsigned char) * actualMeshletNum * max_triangles * 3, meshlet_triangles.data());
+        computePass->AddStorageBuffers(sizeof(unsigned int) * 48 * actualMeshletNum, nullptr, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+        computePass->AddStorageBuffers(sizeof(uint32_t) * actualMeshletNum * max_triangles * 3, nullptr);
         computePass->CreateDescriptorSet();
-        //indices.resize(meshlets.size() * max_triangles * 3);
-        //for (size_t m = 0; m < meshlets.size(); m++)
-        //{
-        //    meshopt_Meshlet& ml = meshlets[m];
-        //    for (size_t t = 0; t < max_triangles; t++)
-        //    {
-        //        size_t base_index = m * max_triangles * 3 + t * 3;
-        //        for (size_t i = 0; i < 3; i++)
-        //        {
-        //            unsigned char vIDInMeshlet = meshlet_triangles[ml.triangle_offset + t * 3 + i];
-        //            unsigned int vIDinMesh = meshlet_vertices[(size_t)ml.vertex_offset + vIDInMeshlet];
-        //            indices[base_index + i] = (t < ml.triangle_count) ? vIDinMesh : 0;
-        //        }
-        //    }
-        //}
     }
 
     void createVertexBuffer() {

@@ -3,45 +3,82 @@
 layout (local_size_x = 64) in;
 
 struct ClusterData {
-    int vertex_offset;
-    int triangle_offset;
-    int vertex_count;
-    int triangle_count;
+    uint vertex_offset;
+    uint triangle_offset;
+    uint vertex_count;
+    uint triangle_count;
 };
 layout(std430, set = 0, binding = 0) buffer  Clusters{
     ClusterData data[];
 } clusters;
 
-//layout(std430, set = 0, binding = 1) buffer  ClusterVertices{
-//    int data[];
-//} vertices;
-//
-//layout(std430, set = 0, binding = 2) buffer  ClusterTriangles{
-//    int data[];
-//} triangles;
+layout(std430, set = 0, binding = 1) buffer  ClusterVertices{
+    uint data[];
+} vertices;
 
-struct OutData {
-    uint vertex_offset;
-    uint vertex_id;
+layout(std430, set = 0, binding = 2) buffer  ClusterTriangles{
+    uint data[];
+} triangles;
+
+const vec4 shadeColors[6] = {
+    {1.0f, 0.0f, 0.0f, 1.0f},
+    {0.0f, 1.0f, 0.0f, 1.0f},
+    {0.0f, 0.0f, 1.0f, 1.0f},
+    {1.0f, 1.0f, 0.0f, 1.0f},
+    {0.0f, 1.0f, 1.0f, 1.0f},
+    {1.0f, 0.0f, 1.0f, 1.0f},
 };
-layout(std430, set = 0, binding = 1) buffer  OutputBuffer{
-    OutData data[];
-} outTest;
 
+struct IndexedDrawCommand {
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int vertexOffset;
+    uint firstInstance;
+    vec4 identifyColor;
+};
+layout(std430, set = 0, binding = 3) buffer  DrawIndexedIndirectCommands {
+    IndexedDrawCommand commands[];
+} indexedIndirectDrawCommands;
+
+layout(std430, set = 0, binding = 4) buffer  ClusterIndices{
+    uint data[];
+} indices;
+
+uint readByteFromUInt(uint _val, uint _idx)
+{
+    _idx = _idx % 4;
+    return (_val & (0xff << (_idx * 8))) >> (_idx * 8);
+}
 
 void main()
 {
     //grab global ID
-	uint gID = gl_GlobalInvocationID.x;
+	uint clusterID = gl_GlobalInvocationID.x;
     //make sure we don't access past the buffer size
-    if(gID < clusters.data.length())
+    if(clusterID < clusters.data.length())
     {
-        // do math
-        outTest.data[gID].vertex_offset = clusters.data[gID].vertex_offset;
-    }
-    else
-    {
-        outTest.data[gID].vertex_offset = gl_WorkGroupID.x;
+        ClusterData cl = clusters.data[clusterID];
+        for (uint t = 0; t < cl.triangle_count; t++)
+        {
+            uint triIndexBlock = (cl.triangle_offset + t * 3) / 4;
+            uint triIndexBias = (cl.triangle_offset + t * 3) % 4;
+            #pragma unroll(3)
+            for (uint i = 0; i < 3; i++)
+            {
+                uint blockValue = triangles.data[triIndexBlock + ((triIndexBias + i) / 4)];
+                uint vertexIDInCluster = readByteFromUInt(blockValue, (triIndexBias + i) % 4);
+                uint vertexIDinMesh = vertices.data[cl.vertex_offset + vertexIDInCluster];
+                indices.data[(cl.triangle_offset / 3 + t) * 3 + i] = vertexIDinMesh;
+            }
+            #pragma end
+        }
+
+        indexedIndirectDrawCommands.commands[clusterID].indexCount = cl.triangle_count * 3;
+        indexedIndirectDrawCommands.commands[clusterID].instanceCount = 1;
+        indexedIndirectDrawCommands.commands[clusterID].firstIndex = cl.triangle_offset / 3 * 3;
+        indexedIndirectDrawCommands.commands[clusterID].vertexOffset = 0;
+        indexedIndirectDrawCommands.commands[clusterID].firstInstance = 0;
     }
 }
 

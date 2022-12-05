@@ -100,7 +100,7 @@ void TComputePass::Dispose()
     }
 }
 
-void TComputePass::AddStorageBuffers(VkDeviceSize _size, void* _data)
+void TComputePass::AddStorageBuffers(VkDeviceSize _size, void* _data, VkBufferUsageFlags _addtionalFlags /* = 0 */)
 {
     TSBufferResource bufferResource = {};
     bufferResource.size = (size_t)_size;
@@ -117,7 +117,9 @@ void TComputePass::AddStorageBuffers(VkDeviceSize _size, void* _data)
         memset(dataStaging, 1, bufferResource.size);
     vkUnmapMemory(device, stagingBufferMemory);
 
-    TBufferManager::createBuffer(device, _size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bufferResource.buffer, bufferResource.memory);
+    VkBufferUsageFlags flags = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    flags |= _addtionalFlags;
+    TBufferManager::createBuffer(device, _size, flags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bufferResource.buffer, bufferResource.memory);
 
     extern void CopyVkBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     CopyVkBuffer(stagingBuffer, bufferResource.buffer, bufferResource.size);
