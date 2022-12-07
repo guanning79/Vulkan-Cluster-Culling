@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
+#include <glm/common.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -230,6 +231,8 @@ private:
     VkPipeline              graphicsPipelines[TDT_MAX];
     TDrawcallType           drawType = TDT_SOLID;
     bool                    pauseModel = false;
+    uint32_t                maxDrawIndirectCount;
+    size_t                  actualMeshletNum;
 
     VkCommandPool commandPool;
 
@@ -537,6 +540,8 @@ private:
         if (physicalDevice == VK_NULL_HANDLE) {
             throw std::runtime_error("failed to find a suitable GPU!");
         }
+
+        getPhysicalDeviceLimits();
     }
 
     void createLogicalDevice() {
@@ -560,6 +565,7 @@ private:
         deviceFeatures.fillModeNonSolid = true;
         deviceFeatures.wideLines = true;
         deviceFeatures.geometryShader = true;
+        deviceFeatures.multiDrawIndirect = true;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -995,6 +1001,13 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
     return VK_SAMPLE_COUNT_1_BIT;
 }
 
+    void getPhysicalDeviceLimits()
+    {
+        VkPhysicalDeviceProperties physicalDeviceProperties;
+        vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+        maxDrawIndirectCount = physicalDeviceProperties.limits.maxDrawIndirectCount;
+    }
+
     void createTextureImageView() {
         textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
     }
@@ -1202,7 +1215,7 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
         size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(),
             indices.size(), &vertices[0].pos.x, vertices.size(), sizeof(Vertex), max_vertices, max_triangles, cone_weight);
 
-        size_t actualMeshletNum = 0;
+        actualMeshletNum = 0;
         for (; actualMeshletNum <meshlets.size(); actualMeshletNum++)
         {
             if(meshlets[actualMeshletNum].triangle_count == 0)
@@ -1213,11 +1226,11 @@ VkSampleCountFlagBits getMaxUsableSampleCount() {
         computePass->CreateComputePipeline();
         computePass->SetComputeConfig((uint32_t)actualMeshletNum / 64 + 1, 1, 1, 64);
 
-        computePass->AddStorageBuffers(sizeof(meshopt_Meshlet) * actualMeshletNum, meshlets.data());
-        computePass->AddStorageBuffers(sizeof(unsigned int) * actualMeshletNum * max_vertices, meshlet_vertices.data());
-        computePass->AddStorageBuffers(sizeof(unsigned char) * actualMeshletNum * max_triangles * 3, meshlet_triangles.data());
-        computePass->AddStorageBuffers(sizeof(unsigned int) * 48 * actualMeshletNum, nullptr, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
-        computePass->AddStorageBuffers(sizeof(uint32_t) * actualMeshletNum * max_triangles * 3, nullptr);
+        computePass->AddStorageBuffers(sizeof(meshopt_Meshlet) * actualMeshletNum, meshlets.data(), "Clusters");
+        computePass->AddStorageBuffers(sizeof(unsigned int) * actualMeshletNum * max_vertices, meshlet_vertices.data(), "ClusterVertices");
+        computePass->AddStorageBuffers(sizeof(unsigned char) * actualMeshletNum * max_triangles * 3, meshlet_triangles.data(), "ClusterTriangles");
+        computePass->AddStorageBuffers(48 * actualMeshletNum, nullptr, "DrawIndexedIndirectCommands", VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+        computePass->AddStorageBuffers(sizeof(uint32_t) * actualMeshletNum * max_triangles * 3, nullptr, "ClusterIndices", VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
         computePass->CreateDescriptorSet();
     }
 
@@ -1465,10 +1478,29 @@ private:
 
         vkCmdBindPipeline(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelines[drawType]);
      
-        vkCmdBindVertexBuffers(commandBuffers[commandBufferIdx], 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffers[commandBufferIdx], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdBindDescriptorSets(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[_imageIdx], 0, nullptr);
-        vkCmdDrawIndexed(commandBuffers[commandBufferIdx], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        if (drawType == TDT_CLUSTER_SHADE || drawType == TDT_CLUSTER_SHADE_WIREFRAME)
+        {
+            vkCmdBindVertexBuffers(commandBuffers[commandBufferIdx], 0, 1, vertexBuffers, offsets);
+            VkBuffer indexBufferComputePass = computePass->GetStorageBuffer("ClusterIndices");
+            vkCmdBindIndexBuffer(commandBuffers[commandBufferIdx], indexBufferComputePass, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[_imageIdx], 0, nullptr);
+            VkBuffer indirectDrawBuffer = computePass->GetStorageBuffer("DrawIndexedIndirectCommands");
+            uint32_t drawTotalCount = 0;
+            uint32_t actualDrawNum = (uint32_t)actualMeshletNum;
+            do 
+            {
+                uint32_t drawCount = glm::min(maxDrawIndirectCount, (uint32_t)actualDrawNum);
+                vkCmdDrawIndexedIndirect(commandBuffers[commandBufferIdx], indirectDrawBuffer, (VkDeviceSize)drawTotalCount * 48, drawCount, 48);
+                drawTotalCount += drawCount;
+                actualDrawNum -= drawCount;
+            } while (actualDrawNum > 0);
+        }
+        else {
+            vkCmdBindVertexBuffers(commandBuffers[commandBufferIdx], 0, 1, vertexBuffers, offsets);
+            vkCmdBindIndexBuffer(commandBuffers[commandBufferIdx], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(commandBuffers[commandBufferIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[_imageIdx], 0, nullptr);
+            vkCmdDrawIndexed(commandBuffers[commandBufferIdx], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        }
 
         if (drawType == TDT_SOLD_WIREFRAME || drawType == TDT_CLUSTER_SHADE_WIREFRAME)
         {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <vulkan/vulkan_core.h>
 
 struct TSBufferResource
@@ -7,6 +8,7 @@ struct TSBufferResource
     VkBuffer            buffer;
     VkDeviceMemory      memory;
     size_t              size;
+    std::string         name;
 };
 
 class TBufferManager

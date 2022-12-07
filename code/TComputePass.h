@@ -24,8 +24,9 @@ public:
     void CreateComputePipeline();
 
 
-    void AddStorageBuffers(VkDeviceSize _size, void* _data, VkBufferUsageFlags _addtionalFlags = 0);
+    void AddStorageBuffers(VkDeviceSize _size, void* _data, const char* _bufName, VkBufferUsageFlags _addtionalFlags = 0);
     void CreateDescriptorSet();
+    VkBuffer GetStorageBuffer(const char* _bufName);
     
 private:
     VkDevice device;

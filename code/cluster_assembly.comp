@@ -20,7 +20,8 @@ layout(std430, set = 0, binding = 2) buffer  ClusterTriangles{
     uint data[];
 } triangles;
 
-const vec4 shadeColors[6] = {
+const uint SHADE_COLOR_SIZE = 6;
+const vec4 shadeColors[SHADE_COLOR_SIZE] = {
     {1.0f, 0.0f, 0.0f, 1.0f},
     {0.0f, 1.0f, 0.0f, 1.0f},
     {0.0f, 0.0f, 1.0f, 1.0f},
@@ -56,7 +57,8 @@ void main()
     //grab global ID
 	uint clusterID = gl_GlobalInvocationID.x;
     //make sure we don't access past the buffer size
-    if(clusterID < clusters.data.length())
+    uint cluster_size = clusters.data.length();
+    if(clusterID < cluster_size)
     {
         ClusterData cl = clusters.data[clusterID];
         for (uint t = 0; t < cl.triangle_count; t++)
@@ -79,6 +81,10 @@ void main()
         indexedIndirectDrawCommands.commands[clusterID].firstIndex = cl.triangle_offset / 3 * 3;
         indexedIndirectDrawCommands.commands[clusterID].vertexOffset = 0;
         indexedIndirectDrawCommands.commands[clusterID].firstInstance = 0;
+
+        float colGrade = float(clusterID) / cluster_size / 2.0f + 0.5f;
+        uint colBaseIdx = clusterID % SHADE_COLOR_SIZE;
+        indexedIndirectDrawCommands.commands[clusterID].identifyColor = shadeColors[colBaseIdx] * colGrade;
     }
 }
 

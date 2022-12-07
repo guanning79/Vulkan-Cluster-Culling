@@ -100,10 +100,11 @@ void TComputePass::Dispose()
     }
 }
 
-void TComputePass::AddStorageBuffers(VkDeviceSize _size, void* _data, VkBufferUsageFlags _addtionalFlags /* = 0 */)
+void TComputePass::AddStorageBuffers(VkDeviceSize _size, void* _data, const char* _bufName, VkBufferUsageFlags _addtionalFlags /* = 0 */)
 {
     TSBufferResource bufferResource = {};
     bufferResource.size = (size_t)_size;
+    bufferResource.name = _bufName;
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -114,7 +115,7 @@ void TComputePass::AddStorageBuffers(VkDeviceSize _size, void* _data, VkBufferUs
     if (_data != nullptr)
         memcpy(dataStaging, _data, bufferResource.size);
     else
-        memset(dataStaging, 1, bufferResource.size);
+        memset(dataStaging, 0, bufferResource.size);
     vkUnmapMemory(device, stagingBufferMemory);
 
     VkBufferUsageFlags flags = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
@@ -160,6 +161,18 @@ void TComputePass::CreateDescriptorSet()
     }
 
     vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+}
+
+VkBuffer TComputePass::GetStorageBuffer(const char* _bufName)
+{
+    for (size_t i=0; i<storageBuffers.size(); i++)
+    {
+        if (_bufName == storageBuffers[i].name)
+        {
+            return storageBuffers[i].buffer;
+        }
+    }
+    return VK_NULL_HANDLE;
 }
 
 void TComputePass::Dispatch(VkCommandBuffer _commBuffer)
